@@ -1,0 +1,121 @@
+Panduan Penggunaan Aplikasi - Versi Lengkap
+
+Prasyarat:
+- Pastikan aplikasi berjalan di server (mis: http://127.0.0.1:8000)
+- Pastikan Anda memiliki akun staf/admin (minta ke IT jika belum)
+- Contoh akun uji (development): admin@imigrasi.local / secret123
+
+Menjalankan & menyiapkan database (singkat):
+1. composer install
+2. php artisan migrate:fresh --seed --force
+3. php artisan serve
+
+Alur Aplikasi (overview singkat):
+1. Login
+2. Pendaftaran (input pendaftar, sistem memberi jadwal hadir otomatis -- kuota 5/hari)
+3. Daftar Ulang (verifikasi berkas, dapat no.antrian bila OK)
+4. Proses -> Pengurusan (finalisasi, penetapan status & pembayaran)
+5. Verifikasi & edit bila perlu
+
+Langkah-demi-langkah (detail):
+
+1) Login
+- Buka halaman Login (http://127.0.0.1:8000/login)
+- Masukkan email & password
+- Klik Login
+- Setelah login, Anda akan diarahkan ke Dashboard
+
+2) Dashboard
+- Menampilkan ringkasan cepat: jumlah pendaftar, daftar ulang, pengurusan, total pendapatan
+- Navigasi ke modul: Pendaftaran, Daftar Ulang, Pengurusan
+
+3) Modul Pendaftaran
+Tujuan: memasukkan calon pemohon dan otomatis memberikan jadwal hadir
+Langkah:
+- Menu: Pendaftaran
+- Klik "Tambah Pendaftaran"
+- Isi: Nama Pemohon, Tanggal Daftar
+- Klik "Simpan"
+
+Hasil teknis:
+- Record tersimpan di tabel `pendaftaran`
+- Sistem menjadwalkan `tanggal_hadir` dan `jam_hadir` berdasarkan kuota 5 orang/hari
+- Anda dapat mengedit pendaftar (Edit -> simpan)
+
+Pencarian:
+- Kotak pencarian live tersedia di halaman Pendaftaran
+- Endpoint: GET /api/pendaftaran/search?q=...
+
+4) Modul Daftar Ulang
+Tujuan: verifikasi berkas pendaftar, set Keterangan OK/TIDAK, generate No. Antrian
+Langkah:
+- Menu: Daftar Ulang
+- Klik "Tambah Daftar Ulang"
+- Pilih No Daftar dari dropdown
+- Form akan mengisi Nama Pemohon, Hari/Tanggal yang dijadwalkan
+- Centang KTP / KK / Ijazah/Akta sesuai ketersediaan
+- Pastikan Tanggal Harus Datang sama dengan tanggal hadir pada pendaftaran
+- Klik "Simpan"
+
+Aturan:
+- Pencocokan berbasis tanggal: `tanggal_harus_datang` harus sama dengan `pendaftaran.tanggal_hadir` (format YYYY-MM-DD)
+- Jika tanggal cocok dan minimal salah satu berkas ada:
+  - `keterangan = 'OK'`
+  - sistem generate `no_antrian` otomatis (nomor bertambah dari max existing)
+- Jika tidak cocok / tidak ada berkas: `keterangan = 'TIDAK'`, `no_antrian = null`
+
+Teknis tambahan:
+- Penomoran antrian dibuat di server di dalam transaksi dengan lock (lockForUpdate) untuk mengurangi duplikat
+- API endpoints:
+  - GET /api/daftar-ulang
+  - POST /api/daftar-ulang
+  - PUT /api/daftar-ulang/{id}
+  - DELETE /api/daftar-ulang/{id}
+  - GET /api/daftar-ulang/search?q=...
+
+5) Proses -> Pengurusan
+Tujuan: memindahkan entri Daftar Ulang OK menjadi record Pengurusan final
+Cara:
+- Di halaman Daftar Ulang, klik tombol "Proses" pada baris yang Keterangan=OK dan No.Antrian terisi
+- Tombol akan men-disable dan menampilkan spinner saat request berlangsung
+- Endpoint yang dipanggil: POST /api/pengurusan { daftar_ulang_id }
+
+Aturan pengurusan:
+- Jika KTP && KK && Ijazah/Akta semua ada:
+  - `berkas = 'Lengkap'`
+  - `status = 'Diterima'`
+  - `keterangan = 'OK'`
+  - `pembayaran = 355000`
+- Jika tidak lengkap:
+  - `berkas = 'Tidak Lengkap'`
+  - `status = 'Ditolak'`
+  - `keterangan = 'Tidak Lengkap'`
+  - `pembayaran = 0`
+- Sistem menolak pembuatan Pengurusan ganda (cek by no_antrian / no_daftar) dan akan mengembalikan HTTP 409 jika sudah ada
+
+6) Modul Pengurusan
+- Menu: Pengurusan
+- Menampilkan daftar entri dan total pendapatan (sum pembayaran untuk status = Diterima)
+- Edit: klik Edit pada baris -> modal muncul -> ubah data -> Simpan (PUT /api/pengurusan/{id})
+- Hapus: tersedia tombol Hapus di setiap baris
+
+7) Contoh alur singkat:
+- Input Pendaftaran (Nama Budi, tanggal daftar X) -> sistem set tanggal hadir Y
+- Input Daftar Ulang untuk Budi, centang KTP/KK/ijazah -> jika tanggal cocok -> Keterangan OK & No.Antrian dibuat
+- Klik Proses -> membuat Pengurusan; bila semua dokumen ada -> pembayaran 355000
+
+8) Troubleshooting singkat:
+- Jika tombol Proses tidak muncul: periksa Keterangan dan No.Antrian
+- Jika No.Antrian tidak muncul: pastikan tanggal di Daftar Ulang sama persis dengan tanggal_hadir di Pendaftaran
+- Jika duplikat pengurusan: cek halaman Pengurusan; server mencegah duplikat
+- Jika seeder minta truncate error: jalankan seeder hanya di environment local (VariedDataSeeder punya guard)
+
+9) Rekomendasi & catatan:
+- Untuk volume tinggi, pertimbangkan mengganti mekanisme nomor antrian menjadi sequence khusus
+- Untuk audit, pertimbangkan mencatat timestamp "processed_at" pada pengurusan
+
+Kontak IT:
+- Jika terjadi bug/data corrupt, laporkan dengan: no_daftar / id_daftar_ulang / id_pengurusan, screenshot, dan waktu kejadian
+
+---
+Catatan: file ini dibuat otomatis di root proyek untuk keperluan panduan staf.

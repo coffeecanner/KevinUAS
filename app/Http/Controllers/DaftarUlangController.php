@@ -4,13 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\DaftarUlang;
 use App\Models\Pendaftaran;
+use App\Models\Pengurusan;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DaftarUlangController extends Controller
 {
     public function index()
     {
-        $list = DaftarUlang::orderBy('id')->get();
+        $list = DaftarUlang::orderBy('id')->get()->map(function($du){
+            $processed = Pengurusan::where('no_daftar', $du->no_daftar)->orWhere('no_antrian', $du->no_antrian)->exists();
+            return array_merge($du->toArray(), ['processed' => $processed]);
+        });
         return response()->json($list);
     }
 
@@ -64,22 +69,29 @@ class DaftarUlangController extends Controller
 
         $hasAnyBerkas = ($request->boolean('ktp') || $request->boolean('kk') || $request->boolean('ijazah_akta'));
 
-        $isMatchingSchedule = (
-            $p->tanggal_hadir->format('Y-m-d') ?? $p->tanggal_hadir
-        );
-
-        // Compare provided tanggal_harus_datang and hari_harus_datang with scheduled
-        $matches = ($data['tanggal_harus_datang'] == $p->tanggal_hadir->format('Y-m-d') || $data['tanggal_harus_datang'] == $p->tanggal_hadir);
-        $matches = $matches && ($data['hari_harus_datang'] == $p->hari);
+        // Matching rule: only compare tanggal_harus_datang (date) with scheduled tanggal_hadir
+        $matches = false;
+        if ($p->tanggal_hadir) {
+            $matches = ($data['tanggal_harus_datang'] == $p->tanggal_hadir->format('Y-m-d'));
+        }
 
         $keterangan = 'TIDAK';
         $no_antrian = null;
 
         if ($matches && $hasAnyBerkas) {
             $keterangan = 'OK';
-            // generate no_antrian otomatis
-            $max = DaftarUlang::whereNotNull('no_antrian')->max('no_antrian');
-            $no_antrian = ($max ? $max + 1 : 1);
+            // generate no_antrian automatically in a DB transaction with lock to avoid race conditions
+            DB::beginTransaction();
+            try {
+                $max = DB::table('daftar_ulang')->whereNotNull('no_antrian')->lockForUpdate()->max('no_antrian');
+                $no_antrian = ($max ? $max + 1 : 1);
+                DB::commit();
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                // fallback without lock
+                $max = DaftarUlang::whereNotNull('no_antrian')->max('no_antrian');
+                $no_antrian = ($max ? $max + 1 : 1);
+            }
         }
 
         $du = DaftarUlang::create([
@@ -117,12 +129,25 @@ class DaftarUlangController extends Controller
         // Re-evaluate keterangan and antrian
         $p = Pendaftaran::find($du->no_daftar);
         $hasAnyBerkas = ($du->ktp || $du->kk || $du->ijazah_akta);
-        $matches = ($du->tanggal_harus_datang == $p->tanggal_hadir) && ($du->hari_harus_datang == $p->hari);
+        // match only by tanggal_harus_datang (date)
+        $matches = false;
+        if ($p && $p->tanggal_hadir) {
+            $matches = ($du->tanggal_harus_datang == \Carbon\Carbon::parse($p->tanggal_hadir)->format('Y-m-d'));
+        }
 
         if ($matches && $hasAnyBerkas) {
             if ($du->keterangan !== 'OK') {
-                $max = DaftarUlang::whereNotNull('no_antrian')->max('no_antrian');
-                $du->no_antrian = ($max ? $max + 1 : 1);
+                // assign no_antrian safely inside a transaction
+                DB::beginTransaction();
+                try {
+                    $max = DB::table('daftar_ulang')->whereNotNull('no_antrian')->lockForUpdate()->max('no_antrian');
+                    $du->no_antrian = ($max ? $max + 1 : 1);
+                    DB::commit();
+                } catch (\Throwable $e) {
+                    DB::rollBack();
+                    $max = DaftarUlang::whereNotNull('no_antrian')->max('no_antrian');
+                    $du->no_antrian = ($max ? $max + 1 : 1);
+                }
             }
             $du->keterangan = 'OK';
         } else {

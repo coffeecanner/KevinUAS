@@ -46,6 +46,11 @@ class PengurusanController extends Controller
             return response()->json(['error' => 'Entry tidak punya no_antrian'], 422);
         }
 
+        // Prevent duplicate pengurusan for same antrian/no_daftar
+        if (\App\Models\Pengurusan::where('no_antrian', $du->no_antrian)->exists() || \App\Models\Pengurusan::where('no_daftar', $du->no_daftar)->exists()) {
+            return response()->json(['error' => 'Pengurusan untuk entry ini sudah ada'], 409);
+        }
+
         $allBerkas = ($du->ktp && $du->kk && $du->ijazah_akta);
         if ($allBerkas) {
             $berkas = 'Lengkap';

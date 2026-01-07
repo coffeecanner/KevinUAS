@@ -1,0 +1,32 @@
+Panduan Singkat (Cheat-sheet) - Aplikasi Imigrasi
+
+Sebelum mulai:
+- Buka http://127.0.0.1:8000 dan login
+
+Alur singkat:
+1. Pendaftaran
+   - Menu: Pendaftaran -> Tambah Pendaftaran
+   - Isi: Nama, Tanggal Daftar -> Simpan
+   - Hasil: otomatis Tanggal Hadir & Jam (kuota 5/hari)
+2. Daftar Ulang
+   - Menu: Daftar Ulang -> Tambah Daftar Ulang
+   - Pilih No Daftar -> centang KTP/KK/Ijazah sesuai ada/tidak
+   - Pastikan Tanggal Harus Datang sama dengan jadwal pendaftaran
+   - Simpan -> bila match + ada berkas -> Keterangan=OK & No.Antrian
+3. Proses -> Pengurusan
+   - Di Daftar Ulang klik Proses (tombol hanya muncul jika OK & belum diproses)
+   - Sistem buat entri Pengurusan; jika berkas lengkap -> Pembayaran = Rp 355.000
+4. Pengurusan
+   - Menu: Pengurusan -> lihat daftar, edit bila perlu
+
+Tips cepat:
+- No.Antrian muncul hanya kalau tanggal cocok dan ada berkas
+- Sistem mencegah pengurusan ganda
+- Jika tombol Proses tidak muncul: cek Keterangan / No.Antrian
+
+Endpoints penting (developer):
+- Pendaftaran: /api/pendaftaran
+- Daftar Ulang: /api/daftar-ulang
+- Pengurusan: /api/pengurusan
+
+Butuh versi PDF/Poster?

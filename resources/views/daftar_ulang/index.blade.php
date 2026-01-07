@@ -123,7 +123,12 @@ async function loadDaftarUlang(){
       <td>${r.ijazah_akta ? 'Ada' : 'Tidak'}</td>
       <td>${r.keterangan}</td>
       <td>${r.no_antrian ?? ''}</td>
-      <td><button class="btn btn-sm btn-warning" onclick="editDu(${r.id})">Edit</button> <button class="btn btn-sm btn-danger" onclick="hapusDu(${r.id})">Hapus</button></td>`;
+      <td>
+        ${r.processed ? '<span class="badge bg-success me-1">Diproses</span>' : ''}
+        <button class="btn btn-sm btn-warning" onclick="editDu(${r.id})">Edit</button>
+        ${r.keterangan == 'OK' && r.no_antrian && !r.processed ? `<button class="btn btn-sm btn-primary" onclick="prosesPeng(${r.id}, this)">Proses</button>` : ''}
+        <button class="btn btn-sm btn-danger" onclick="hapusDu(${r.id})">Hapus</button>
+      </td>`;
     tbody.appendChild(tr);
   });
 }
@@ -143,6 +148,36 @@ document.getElementById('daftar-ulang-form').addEventListener('submit', async fu
 async function hapusDu(id){ if (!confirm('Hapus?')) return; const res = await fetch('/api/daftar-ulang/' + id, { method: 'DELETE', headers: {'X-CSRF-TOKEN': csrf} }); if (res.ok) loadDaftarUlang(); }
 
 loadPendaftarForSelect(); loadDaftarUlang();
+
+async function prosesPeng(duId){
+  if (!confirm('Proses entry ini ke Pengurusan?')) return;
+  // find the button passed as second arg via arguments[1]
+  const btn = arguments[1] || null;
+  const originalHtml = btn ? btn.innerHTML : null;
+  try {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ...'; }
+    const res = await fetch('/api/pengurusan', { method: 'POST', headers: {'X-CSRF-TOKEN': csrf}, body: new URLSearchParams({ daftar_ulang_id: duId }) });
+    if (res.ok) {
+      alert('Pengurusan dibuat');
+      loadDaftarUlang();
+      if (typeof loadPengurusan === 'function') loadPengurusan();
+      // replace button with badge if still present
+      if (btn && btn.parentElement) {
+        btn.parentElement.insertAdjacentHTML('afterbegin', '<span class="badge bg-success me-1">Diproses</span>');
+        btn.remove();
+      }
+    } else if (res.status === 409) {
+      const j = await res.json(); alert(j.error || 'Sudah ada pengurusan');
+      if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+    } else {
+      alert('Gagal membuat pengurusan');
+      if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+    }
+  } catch (e) {
+    alert('Gagal membuat pengurusan');
+    if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+  }
+}
 
 function editDu(id){
   fetch('/api/daftar-ulang/' + id).then(r=>r.json()).then(d=>{
@@ -173,7 +208,7 @@ $(function(){
         const tbody = $('#daftar-ulang-table tbody').empty();
         if (!res.length) { tbody.append('<tr><td colspan="9" class="text-center small text-muted">Tidak ada hasil</td></tr>'); return; }
         res.forEach(r=>{
-          tbody.append(`<tr><td>${r.no_daftar}</td><td>${r.nama_pemohon}</td><td>Daftar Ulang</td><td>${r.ktp ? 'Ada' : 'Tidak'}</td><td>${r.kk ? 'Ada' : 'Tidak'}</td><td>${r.ijazah_akta ? 'Ada' : 'Tidak'}</td><td>${r.keterangan}</td><td>${r.no_antrian ?? ''}</td><td><button class="btn btn-sm btn-danger" onclick="hapusDu(${r.id})">Hapus</button></td></tr>`);
+          tbody.append(`<tr><td>${r.no_daftar}</td><td>${r.nama_pemohon}</td><td>Daftar Ulang</td><td>${r.ktp ? 'Ada' : 'Tidak'}</td><td>${r.kk ? 'Ada' : 'Tidak'}</td><td>${r.ijazah_akta ? 'Ada' : 'Tidak'}</td><td>${r.keterangan}</td><td>${r.no_antrian ?? ''}</td><td>${r.processed ? '<span class="badge bg-success me-1">Diproses</span>' : ''}<button class="btn btn-sm btn-warning" onclick="editDu(${r.id})">Edit</button> ${r.keterangan == 'OK' && r.no_antrian && !r.processed ? `<button class="btn btn-sm btn-primary" onclick="prosesPeng(${r.id}, this)">Proses</button>` : ''} <button class="btn btn-sm btn-danger" onclick="hapusDu(${r.id})">Hapus</button></td></tr>`);
         });
       }).fail(function(){ loadDaftarUlang(); });
     }, 250);
