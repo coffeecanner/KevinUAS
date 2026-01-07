@@ -38,4 +38,22 @@ class DashboardController extends Controller
             'labels', 'values', 'accepted', 'rejected'
         ));
     }
+
+    /**
+     * Return a small JSON summary for sidebar quick stats.
+     */
+    public function summary()
+    {
+        $totalPendaftar = Pendaftaran::count();
+        $totalDaftarUlang = DaftarUlang::count();
+        $totalPengurusan = Pengurusan::count();
+        $totalPendapatan = Pengurusan::where('status', 'Diterima')->sum('pembayaran');
+
+        return response()->json([
+            'totalPendaftar' => $totalPendaftar,
+            'totalDaftarUlang' => $totalDaftarUlang,
+            'totalPengurusan' => $totalPengurusan,
+            'totalPendapatan' => $totalPendapatan,
+        ]);
+    }
 }

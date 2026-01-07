@@ -6,7 +6,10 @@
     <div class="card card-modern p-3 mb-4">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="mb-0">Daftar Ulang</h4>
-        <button class="btn btn-primary" id="btn-show-form">Tambah Daftar Ulang</button>
+        <div class="d-flex align-items-center gap-2">
+          <input id="search-du" class="form-control form-control-sm" placeholder="Cari (nama / no / hari / tanggal / status / antrian)..." style="width:260px" />
+          <button class="btn btn-primary" id="btn-show-form">Tambah Daftar Ulang</button>
+        </div>
       </div>
 
       <div id="form-area" class="mb-3" style="display:none;">
@@ -87,7 +90,7 @@ document.getElementById('btn-show-form').addEventListener('click', ()=>{
 });
 
 async function loadPendaftarForSelect(){
-  const res = await fetch('/pendaftaran');
+  const res = await fetch('/api/pendaftaran');
   const data = await res.json();
   const sel = document.getElementById('select-pendaftar');
   sel.innerHTML = '<option value="">-- Pilih --</option>';
@@ -103,7 +106,7 @@ document.getElementById('select-pendaftar').addEventListener('change', function(
 });
 
 async function loadDaftarUlang(){
-  const res = await fetch('/daftar-ulang');
+  const res = await fetch('/api/daftar-ulang');
   const data = await res.json();
   const tbody = document.querySelector('#daftar-ulang-table tbody');
   tbody.innerHTML = '';
@@ -128,12 +131,33 @@ document.getElementById('daftar-ulang-form').addEventListener('submit', async fu
   const body = new URLSearchParams(new FormData(this));
   // checkbox values to boolean
   ['ktp','kk','ijazah_akta'].forEach(k=>{ if (!body.has(k)) body.append(k,'0'); });
-  const res = await fetch('/daftar-ulang', { method: 'POST', headers: {'X-CSRF-TOKEN': csrf}, body });
+  const res = await fetch('/api/daftar-ulang', { method: 'POST', headers: {'X-CSRF-TOKEN': csrf}, body });
   if (res.ok) { this.reset(); loadDaftarUlang(); alert('Tersimpan'); } else { alert('Gagal menyimpan'); }
 });
 
-async function hapusDu(id){ if (!confirm('Hapus?')) return; const res = await fetch('/daftar-ulang/' + id, { method: 'DELETE', headers: {'X-CSRF-TOKEN': csrf} }); if (res.ok) loadDaftarUlang(); }
+async function hapusDu(id){ if (!confirm('Hapus?')) return; const res = await fetch('/api/daftar-ulang/' + id, { method: 'DELETE', headers: {'X-CSRF-TOKEN': csrf} }); if (res.ok) loadDaftarUlang(); }
 
 loadPendaftarForSelect(); loadDaftarUlang();
+</script>
+
+<script>
+// jQuery live search for daftar ulang
+$(function(){
+  let t = null;
+  $('#search-du').on('input', function(){
+    const q = $(this).val().trim();
+    clearTimeout(t);
+    t = setTimeout(()=>{
+      if (!q) { loadDaftarUlang(); return; }
+  $.getJSON('/api/daftar-ulang/search', { q }).done(function(res){
+        const tbody = $('#daftar-ulang-table tbody').empty();
+        if (!res.length) { tbody.append('<tr><td colspan="9" class="text-center small text-muted">Tidak ada hasil</td></tr>'); return; }
+        res.forEach(r=>{
+          tbody.append(`<tr><td>${r.no_daftar}</td><td>${r.nama_pemohon}</td><td>Daftar Ulang</td><td>${r.ktp ? 'Ada' : 'Tidak'}</td><td>${r.kk ? 'Ada' : 'Tidak'}</td><td>${r.ijazah_akta ? 'Ada' : 'Tidak'}</td><td>${r.keterangan}</td><td>${r.no_antrian ?? ''}</td><td><button class="btn btn-sm btn-danger" onclick="hapusDu(${r.id})">Hapus</button></td></tr>`);
+        });
+      }).fail(function(){ loadDaftarUlang(); });
+    }, 250);
+  });
+});
 </script>
 @endpush

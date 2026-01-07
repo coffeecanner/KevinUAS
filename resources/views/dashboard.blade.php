@@ -3,23 +3,6 @@
 @section('content')
 <div class="row">
   <div class="col-12">
-    @include('partials.sidebar')
-
-    <div class="container-fluid">
-      <div class="row">
-        <div class="col-lg-9 offset-lg-3">
-          
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3 class="mb-0">Overview - Dashboard Imigrasi</h3>
-            <div class="d-flex align-items-center gap-3">
-              <div class="live-search" style="width:320px">
-                <input id="search-input" class="form-control form-control-sm" placeholder="Cari pendaftar (ketik nama)..." />
-                <div id="search-results" class="live-search-results" style="display:none"></div>
-              </div>
-              <div class="text-end text-muted small">{{ now()->format('d M Y') }}</div>
-            </div>
-          </div>
-
     <div class="d-flex justify-content-between align-items-center mb-3">
       <h3 class="mb-0">Overview - Dashboard Imigrasi</h3>
       <div class="d-flex align-items-center gap-3">
@@ -30,6 +13,8 @@
         <div class="text-end text-muted small">{{ now()->format('d M Y') }}</div>
       </div>
     </div>
+
+    
 
     <div class="row g-3 mb-3">
       <div class="col-md-3">
@@ -102,8 +87,8 @@ $(function(){
     const q = $(this).val().trim();
     clearTimeout(timer);
     if (!q) { $('#search-results').hide().empty(); return; }
-    timer = setTimeout(()=>{
-      $.getJSON('/pendaftaran/search', { q }).done(function(res){
+  timer = setTimeout(()=>{
+  $.getJSON('/api/pendaftaran/search', { q }).done(function(res){
         const box = $('#search-results').empty();
         if (!res.length) { box.append('<div class="item small text-muted">Tidak ada hasil</div>').show(); return; }
         res.forEach(r=>{
@@ -144,7 +129,7 @@ new Chart(ctx2, {
 });
 
 // Fill recent pendaftar
-fetch('/pendaftaran').then(r=>r.json()).then(data=>{
+fetch('/api/pendaftaran').then(r=>r.json()).then(data=>{
   const body = document.getElementById('recent-body');
   body.innerHTML = '';
   data.slice(-8).reverse().forEach((d, i)=>{

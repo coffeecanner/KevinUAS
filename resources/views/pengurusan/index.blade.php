@@ -5,8 +5,13 @@
   <div class="col-12">
     <div class="card card-modern p-3 mb-4">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="mb-0">Pengurusan Paspor</h4>
-        <small class="text-muted">Tampilkan data yang sudah ber-antrian dan ringkasan pendapatan</small>
+        <div>
+          <h4 class="mb-0">Pengurusan Paspor</h4>
+          <small class="text-muted">Tampilkan data yang sudah ber-antrian dan ringkasan pendapatan</small>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <input id="search-peng" class="form-control form-control-sm" placeholder="Cari (nama / no antrian / no daftar / status / keterangan)..." style="width:300px" />
+        </div>
       </div>
 
       <div class="table-responsive">
@@ -39,7 +44,7 @@
 @push('scripts')
 <script>
 async function loadPengurusan(){
-  const res = await fetch('/pengurusan');
+  const res = await fetch('/api/pengurusan');
   const data = await res.json();
   const list = data.data ?? data;
   const tbody = document.querySelector('#pengurusan-table tbody');
@@ -61,8 +66,32 @@ async function loadPengurusan(){
   document.getElementById('total-pendapatan').textContent = 'Rp ' + Number(total).toLocaleString();
 }
 
-async function hapus(id){ if (!confirm('Hapus record?')) return; const res = await fetch('/pengurusan/' + id, { method: 'DELETE', headers: {'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')} }); if (res.ok) loadPengurusan(); }
+async function hapus(id){ if (!confirm('Hapus record?')) return; const res = await fetch('/api/pengurusan/' + id, { method: 'DELETE', headers: {'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')} }); if (res.ok) loadPengurusan(); }
 
 loadPengurusan();
+</script>
+
+<script>
+// jQuery live search for pengurusan
+$(function(){
+  let t = null;
+  $('#search-peng').on('input', function(){
+    const q = $(this).val().trim();
+    clearTimeout(t);
+    t = setTimeout(()=>{
+      if (!q) { loadPengurusan(); return; }
+  $.getJSON('/api/pengurusan/search', { q }).done(function(res){
+        const data = res.data || [];
+        const tbody = $('#pengurusan-table tbody').empty();
+        if (!data.length) { tbody.append('<tr><td colspan="8" class="text-center small text-muted">Tidak ada hasil</td></tr>'); }
+        data.forEach(r=>{
+          tbody.append(`<tr><td>${r.no_antrian}</td><td>${r.no_daftar}</td><td>${r.nama_pemohon}</td><td>${r.berkas}</td><td>${r.status}</td><td>${r.keterangan}</td><td>${r.pembayaran ? 'Rp ' + Number(r.pembayaran).toLocaleString() : '-'}</td><td><button class="btn btn-sm btn-danger" onclick="hapus(${r.id})">Hapus</button></td></tr>`);
+        });
+        const total = res.total_pendapatan ?? 0;
+        $('#total-pendapatan').text('Rp ' + Number(total).toLocaleString());
+      }).fail(function(){ loadPengurusan(); });
+    }, 250);
+  });
+});
 </script>
 @endpush

@@ -128,10 +128,35 @@ class PendaftaranController extends Controller
      */
     public function search(Request $request)
     {
-        $q = $request->get('q', '');
-        $list = Pendaftaran::when($q, function($qb) use ($q) {
-            $qb->where('nama_pemohon', 'like', "%{$q}%");
-        })->orderBy('no_daftar')->limit(20)->get()->map(function($p){
+        $q = trim($request->get('q', ''));
+
+        // If the query looks like a number, try exact match on no_daftar first
+        $exact = collect();
+        if (ctype_digit($q)) {
+            $exact = Pendaftaran::where('no_daftar', $q)->get();
+        }
+
+        $fuzzy = Pendaftaran::when($q, function($qb) use ($q) {
+            $qb->where(function($s) use ($q) {
+                $s->where('nama_pemohon', 'like', "%{$q}%")
+                  ->orWhere('no_daftar', 'like', "%{$q}%")
+                  ->orWhere('hari', 'like', "%{$q}%")
+                  ->orWhere('tanggal_daftar', 'like', "%{$q}%")
+                  ->orWhere('tanggal_hadir', 'like', "%{$q}%")
+                  ->orWhere('jam_hadir', 'like', "%{$q}%");
+            });
+        })->orderBy('no_daftar')->limit(50)->get();
+
+        // Merge exact first (if any), then fuzzy results without duplicating exacts
+        if ($exact->isNotEmpty()) {
+            $exactIds = $exact->pluck('no_daftar')->all();
+            $fuzzy = $fuzzy->reject(function($item) use ($exactIds){ return in_array($item->no_daftar, $exactIds); })->values();
+            $merged = $exact->concat($fuzzy);
+        } else {
+            $merged = $fuzzy;
+        }
+
+        $list = $merged->map(function($p){
             $td = $p->tanggal_daftar ? \Carbon\Carbon::parse($p->tanggal_daftar) : null;
             $th = $p->tanggal_hadir ? \Carbon\Carbon::parse($p->tanggal_hadir) : null;
             return [

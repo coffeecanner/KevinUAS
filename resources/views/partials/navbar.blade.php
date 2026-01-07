@@ -6,11 +6,7 @@
     </div>
 
     <div class="d-flex align-items-center gap-3">
-      <nav class="d-none d-md-block">
-        <a class="nav-link d-inline text-white" href="/ui/pendaftaran">Pendaftaran</a>
-        <a class="nav-link d-inline text-white" href="/ui/daftar-ulang">Daftar Ulang</a>
-        <a class="nav-link d-inline text-white" href="/ui/pengurusan">Pengurusan</a>
-      </nav>
+      {{-- header links removed: Pendaftaran/Daftar Ulang/Pengurusan are accessible from the sidebar --}}
 
       @if(auth()->check())
         <div class="dropdown">
@@ -26,12 +22,22 @@
           </ul>
         </div>
       @else
-        <a class="btn btn-sm btn-outline-light" href="/login">Masuk</a>
+        @if(!Request::is('login'))
+          <a class="btn btn-sm btn-outline-light" href="/login">Masuk</a>
+        @endif
       @endif
     </div>
   </div>
 </header>
 
 <script>
-$('#sidebarToggle').on('click', function(){ $('body').toggleClass('sidebar-collapsed'); });
+document.addEventListener('DOMContentLoaded', function(){
+  var btn = document.getElementById('sidebarToggle');
+  if (!btn) return;
+  // hide the burger button when on the login page
+  if (window.location.pathname === '/login') { btn.style.display = 'none'; return; }
+  btn.addEventListener('click', function(){
+    document.body.classList.toggle('sidebar-collapsed');
+  });
+});
 </script>

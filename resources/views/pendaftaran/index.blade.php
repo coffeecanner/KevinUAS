@@ -7,9 +7,8 @@
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="mb-0">Pendaftaran</h4>
         <div class="d-flex align-items-center gap-2">
-          <div class="live-search" style="width:300px">
-            <input id="search-input" class="form-control form-control-sm" placeholder="Cari nama..." />
-            <div id="search-results" class="live-search-results" style="display:none"></div>
+          <div style="width:300px">
+            <input id="search-input" class="form-control form-control-sm" placeholder="Cari (nama / no daftar / hari / tanggal / jam / lainnya)..." />
           </div>
           <button class="btn btn-primary" id="btn-show-form">Tambah Pendaftaran</button>
         </div>
@@ -66,7 +65,7 @@ document.getElementById('btn-show-form').addEventListener('click', ()=>{
 });
 
 async function loadPendaftaran(){
-  const res = await fetch('/pendaftaran');
+  const res = await fetch('/api/pendaftaran');
   const data = await res.json();
   const tbody = document.querySelector('#pendaftaran-table tbody');
   tbody.innerHTML = '';
@@ -91,14 +90,14 @@ document.getElementById('pendaftaran-form').addEventListener('submit', async fun
   e.preventDefault();
   const form = e.target;
   const body = new URLSearchParams(new FormData(form));
-  const res = await fetch('/pendaftaran', { method: 'POST', headers: {'X-CSRF-TOKEN': csrf}, body });
+  const res = await fetch('/api/pendaftaran', { method: 'POST', headers: {'X-CSRF-TOKEN': csrf}, body });
   if (res.ok) { form.reset(); loadPendaftaran(); alert('Tersimpan'); }
   else { alert('Gagal menyimpan'); }
 });
 
 async function hapus(id){
   if (!confirm('Hapus data?')) return;
-  const res = await fetch('/pendaftaran/' + id, { method: 'DELETE', headers: {'X-CSRF-TOKEN': csrf} });
+  const res = await fetch('/api/pendaftaran/' + id, { method: 'DELETE', headers: {'X-CSRF-TOKEN': csrf} });
   if (res.ok) loadPendaftaran(); else alert('Gagal menghapus');
 }
 
@@ -110,34 +109,26 @@ loadPendaftaran();
 </script>
 
 <script>
-// jQuery live search for pendaftaran page
+// jQuery live search for pendaftaran page: directly render into table
 $(function(){
   let t = null;
   $('#search-input').on('input', function(){
     const q = $(this).val().trim();
     clearTimeout(t);
-    if (!q) { $('#search-results').hide().empty(); loadPendaftaran(); return; }
     t = setTimeout(()=>{
-      $.getJSON('/pendaftaran/search', { q }).done(function(res){
-        const box = $('#search-results').empty();
-        if (!res.length) { box.append('<div class="item small text-muted">Tidak ada hasil</div>').show(); return; }
-        res.forEach(r=>{
-          const item = $(`<div class="item"><strong>${r.nama_pemohon}</strong><div class="small text-muted">${r.no_daftar} • ${r.tanggal_hadir}</div></div>`);
-          item.on('click', ()=>{
-            // render single result in table
-            const tbody = $('#pendaftaran-table tbody').empty();
-            tbody.append(`<tr><td>${r.no_daftar}</td><td>${r.nama_pemohon}</td><td>${r.tanggal_daftar}</td><td>${r.hari}</td><td>${r.tanggal_hadir}</td><td>${r.jam_hadir}</td><td class="table-actions"><button class="btn btn-sm btn-warning">Edit</button> <button class="btn btn-sm btn-danger">Hapus</button></td></tr>`);
-            box.hide();
-            $('#search-input').val('');
-          });
-          box.append(item);
+      if (!q) { loadPendaftaran(); return; }
+  $.getJSON('/api/pendaftaran/search', { q }).done(function(res){
+        const tbody = $('#pendaftaran-table tbody').empty();
+        if (!res.length) { tbody.append('<tr><td colspan="7" class="text-center small text-muted">Tidak ada hasil</td></tr>'); return; }
+        res.forEach(r => {
+          tbody.append(`<tr><td>${r.no_daftar}</td><td>${r.nama_pemohon}</td><td>${r.tanggal_daftar}</td><td>${r.hari}</td><td>${r.tanggal_hadir}</td><td>${r.jam_hadir}</td><td class="table-actions"><button class="btn btn-sm btn-warning" onclick="edit(${r.no_daftar})">Edit</button> <button class="btn btn-sm btn-danger" onclick="hapus(${r.no_daftar})">Hapus</button></td></tr>`);
         });
-        box.show();
+      }).fail(function(){
+        // on failure, fall back to full list
+        loadPendaftaran();
       });
     }, 250);
   });
-  $(document).on('click', function(e){ if (!$(e.target).closest('.live-search').length) $('#search-results').hide(); });
 });
-</script>
 </script>
 @endpush

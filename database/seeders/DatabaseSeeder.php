@@ -22,6 +22,9 @@ class DatabaseSeeder extends Seeder
             'email' => 'test@example.com',
         ]);
 
+        // Create admin user for testing/login
+        $this->call([\Database\Seeders\AdminUserSeeder::class]);
+
         // App specific seeders
         $this->call([\Database\Seeders\PendaftaranSeeder::class]);
         $this->call([\Database\Seeders\DaftarUlangSeeder::class]);

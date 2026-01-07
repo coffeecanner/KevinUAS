@@ -15,6 +15,25 @@ class PengurusanController extends Controller
         return response()->json(['data' => $list, 'total_pendapatan' => $total]);
     }
 
+    /**
+     * Search pengurusan by name, no_daftar or no_antrian
+     */
+    public function search(Request $request)
+    {
+        $q = $request->query('q');
+        if (!$q) return response()->json(['data' => [], 'total_pendapatan' => 0]);
+        $list = Pengurusan::where('nama_pemohon', 'like', "%{$q}%")
+            ->orWhere('no_daftar', 'like', "%{$q}%")
+            ->orWhere('no_antrian', 'like', "%{$q}%")
+            ->orWhere('status', 'like', "%{$q}%")
+            ->orWhere('berkas', 'like', "%{$q}%")
+            ->orWhere('keterangan', 'like', "%{$q}%")
+            ->orderBy('no_antrian')
+            ->get();
+        $total = $list->where('status', 'Diterima')->sum('pembayaran');
+        return response()->json(['data' => $list, 'total_pendapatan' => $total]);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([

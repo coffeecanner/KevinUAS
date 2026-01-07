@@ -19,11 +19,11 @@ class AuthController extends Controller
         $data = $request->validate([
             'email' => 'required|email',
             'password' => 'required|string',
-            'remember' => 'nullable|boolean',
         ]);
 
         $credentials = ['email' => $data['email'], 'password' => $data['password']];
-        $remember = isset($data['remember']) && $data['remember'];
+        // checkbox sends 'on' when checked; use has() to determine remember
+        $remember = $request->has('remember');
 
         if (Auth::attempt($credentials, $remember)) {
             $request->session()->regenerate();

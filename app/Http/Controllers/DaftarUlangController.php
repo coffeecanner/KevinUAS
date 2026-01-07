@@ -14,6 +14,40 @@ class DaftarUlangController extends Controller
         return response()->json($list);
     }
 
+    /**
+     * Search daftar ulang by name or no_daftar
+     */
+    public function search(Request $request)
+    {
+        $q = trim($request->query('q', ''));
+        if ($q === '') return response()->json([]);
+
+        // If numeric, prefer exact matches on no_daftar or no_antrian first
+        $exact = collect();
+        if (ctype_digit($q)) {
+            $exact = DaftarUlang::where('no_daftar', $q)->orWhere('no_antrian', $q)->get();
+        }
+
+        $fuzzy = DaftarUlang::where(function($qb) use ($q) {
+            $qb->where('nama_pemohon', 'like', "%{$q}%")
+               ->orWhere('no_daftar', 'like', "%{$q}%")
+               ->orWhere('hari_harus_datang', 'like', "%{$q}%")
+               ->orWhere('tanggal_harus_datang', 'like', "%{$q}%")
+               ->orWhere('keterangan', 'like', "%{$q}%")
+               ->orWhere('no_antrian', 'like', "%{$q}%");
+        })->orderBy('id')->get();
+
+        if ($exact->isNotEmpty()) {
+            $exactIds = $exact->pluck('id')->all();
+            $fuzzy = $fuzzy->reject(function($item) use ($exactIds){ return in_array($item->id, $exactIds); })->values();
+            $merged = $exact->concat($fuzzy);
+        } else {
+            $merged = $fuzzy;
+        }
+
+        return response()->json($merged);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
