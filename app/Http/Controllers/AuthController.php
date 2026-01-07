@@ -11,6 +11,10 @@ class AuthController extends Controller
 {
     public function showLogin()
     {
+        // If already authenticated, go to dashboard directly
+        if (Auth::check()) {
+            return redirect('/');
+        }
         return view('auth.login');
     }
 
