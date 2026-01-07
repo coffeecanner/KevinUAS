@@ -26,7 +26,7 @@
                 <label class="form-label">Tanggal Daftar</label>
                 <input type="date" name="tanggal_daftar" class="form-control" required />
               </div>
-              <div class="col-md-2 d-flex align-items-end">
+                <div class="col-md-2 d-flex align-items-end">
                 <button class="btn btn-success w-100" type="submit">Simpan</button>
               </div>
             </div>
@@ -64,6 +64,8 @@ document.getElementById('btn-show-form').addEventListener('click', ()=>{
   const fa = document.getElementById('form-area'); fa.style.display = fa.style.display === 'none' ? 'block' : 'none';
 });
 
+let pendaftaranEditId = null;
+
 async function loadPendaftaran(){
   const res = await fetch('/api/pendaftaran');
   const data = await res.json();
@@ -90,8 +92,10 @@ document.getElementById('pendaftaran-form').addEventListener('submit', async fun
   e.preventDefault();
   const form = e.target;
   const body = new URLSearchParams(new FormData(form));
-  const res = await fetch('/api/pendaftaran', { method: 'POST', headers: {'X-CSRF-TOKEN': csrf}, body });
-  if (res.ok) { form.reset(); loadPendaftaran(); alert('Tersimpan'); }
+  const method = pendaftaranEditId ? 'PUT' : 'POST';
+  const url = pendaftaranEditId ? '/api/pendaftaran/' + pendaftaranEditId : '/api/pendaftaran';
+  const res = await fetch(url, { method, headers: {'X-CSRF-TOKEN': csrf}, body });
+  if (res.ok) { form.reset(); pendaftaranEditId = null; loadPendaftaran(); alert('Tersimpan'); }
   else { alert('Gagal menyimpan'); }
 });
 
@@ -102,7 +106,34 @@ async function hapus(id){
 }
 
 function edit(id){
-  alert('Untuk sementara, gunakan API atau implementasi edit sesuai kebutuhan.');
+  // populate form for editing
+  fetch('/api/pendaftaran/' + id).then(r=>r.json()).then(d=>{
+    const form = document.getElementById('pendaftaran-form');
+    form.querySelector('input[name="nama_pemohon"]').value = d.nama_pemohon || '';
+    // tanggal_daftar comes as d.tanggal_daftar in format d-M-Y, try to fetch raw via API show returns d.tanggal_daftar in d-M-Y; we will fetch raw from API as ISO by calling the endpoint that returns JSON original values if exists
+    // The show returns formatted date; so prefer to set tanggal_daftar input using a quick fetch of stored model via /api/pendaftaran (list) and finding the item
+    fetch('/api/pendaftaran').then(r=>r.json()).then(list=>{
+      const item = list.find(x=>x.no_daftar == id);
+      const raw = item && (item.tanggal_daftar_raw || item.tanggal_daftar);
+      if (raw) {
+        // if raw is ISO (Y-m-d), set directly; otherwise try to parse
+        if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+          form.querySelector('input[name="tanggal_daftar"]').value = raw;
+        } else {
+          // fallback: try parsing formatted d-M-Y
+          const parts = item.tanggal_daftar.split('-');
+          if (parts.length===3) {
+            const dd = parts[0]; const mm = parts[1]; const yyyy = parts[2];
+            if (!isNaN(mm)) {
+              form.querySelector('input[name="tanggal_daftar"]').value = `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+            }
+          }
+        }
+      }
+    });
+    document.getElementById('form-area').style.display = 'block';
+    pendaftaranEditId = id;
+  }).catch(()=>{ alert('Gagal mengambil data'); });
 }
 
 loadPendaftaran();

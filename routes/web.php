@@ -39,6 +39,7 @@ Route::middleware('auth')->group(function(){
 	Route::get('/api/pengurusan/search', [PengurusanController::class, 'search']);
 	Route::post('/api/pengurusan', [PengurusanController::class, 'store']);
 	Route::get('/api/pengurusan/{id}', [PengurusanController::class, 'show']);
+	Route::put('/api/pengurusan/{id}', [PengurusanController::class, 'update']);
 	Route::delete('/api/pengurusan/{id}', [PengurusanController::class, 'destroy']);
 
 	// UI routes (Blade views) - direct paths

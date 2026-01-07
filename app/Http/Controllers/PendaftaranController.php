@@ -20,8 +20,10 @@ class PendaftaranController extends Controller
                 'no_daftar' => $p->no_daftar,
                 'nama_pemohon' => $p->nama_pemohon,
                 'tanggal_daftar' => $tanggal_daftar ? $tanggal_daftar->locale('id')->translatedFormat('d-M-Y') : null,
+                'tanggal_daftar_raw' => $p->tanggal_daftar,
                 'hari' => $tanggal_hadir ? $tanggal_hadir->locale('id')->translatedFormat('l') : ($p->hari ?? null),
                 'tanggal_hadir' => $tanggal_hadir ? $tanggal_hadir->locale('id')->translatedFormat('d-M-Y') : null,
+                'tanggal_hadir_raw' => $p->tanggal_hadir,
                 'jam_hadir' => $p->jam_hadir ? \Carbon\Carbon::parse($p->jam_hadir)->format('H:i') : null,
             ];
         });
@@ -62,8 +64,10 @@ class PendaftaranController extends Controller
             'no_daftar' => $p->no_daftar,
             'nama_pemohon' => $p->nama_pemohon,
             'tanggal_daftar' => $td->locale('id')->translatedFormat('d-M-Y'),
+            'tanggal_daftar_raw' => $p->tanggal_daftar,
             'hari' => $th->locale('id')->translatedFormat('l'),
             'tanggal_hadir' => $th->locale('id')->translatedFormat('d-M-Y'),
+            'tanggal_hadir_raw' => $p->tanggal_hadir,
             'jam_hadir' => $p->jam_hadir ? \Carbon\Carbon::parse($p->jam_hadir)->format('H:i') : null,
         ], 201);
     }

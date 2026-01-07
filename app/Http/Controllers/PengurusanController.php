@@ -78,6 +78,27 @@ class PengurusanController extends Controller
         return response()->json($p);
     }
 
+    public function update(Request $request, $id)
+    {
+        $p = Pengurusan::findOrFail($id);
+        $data = $request->validate([
+            'nama_pemohon' => 'sometimes|string',
+            'berkas' => 'sometimes|string',
+            'status' => 'sometimes|string',
+            'keterangan' => 'sometimes|string',
+            'pembayaran' => 'sometimes|numeric',
+        ]);
+
+        if (isset($data['nama_pemohon'])) $p->nama_pemohon = $data['nama_pemohon'];
+        if (isset($data['berkas'])) $p->berkas = $data['berkas'];
+        if (isset($data['status'])) $p->status = $data['status'];
+        if (isset($data['keterangan'])) $p->keterangan = $data['keterangan'];
+        if (isset($data['pembayaran'])) $p->pembayaran = $data['pembayaran'];
+
+        $p->save();
+        return response()->json($p);
+    }
+
     public function destroy($id)
     {
         $p = Pengurusan::findOrFail($id);

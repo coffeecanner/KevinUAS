@@ -105,6 +105,8 @@ document.getElementById('select-pendaftar').addEventListener('change', function(
   document.querySelector('input[name="tanggal_harus_datang"]').value = opt.dataset.tanggal || '';
 });
 
+let daftarUlangEditId = null;
+
 async function loadDaftarUlang(){
   const res = await fetch('/api/daftar-ulang');
   const data = await res.json();
@@ -121,23 +123,41 @@ async function loadDaftarUlang(){
       <td>${r.ijazah_akta ? 'Ada' : 'Tidak'}</td>
       <td>${r.keterangan}</td>
       <td>${r.no_antrian ?? ''}</td>
-      <td><button class="btn btn-sm btn-danger" onclick="hapusDu(${r.id})">Hapus</button></td>`;
+      <td><button class="btn btn-sm btn-warning" onclick="editDu(${r.id})">Edit</button> <button class="btn btn-sm btn-danger" onclick="hapusDu(${r.id})">Hapus</button></td>`;
     tbody.appendChild(tr);
   });
 }
 
 document.getElementById('daftar-ulang-form').addEventListener('submit', async function(e){
   e.preventDefault();
-  const body = new URLSearchParams(new FormData(this));
+  const form = this;
+  const body = new URLSearchParams(new FormData(form));
   // checkbox values to boolean
   ['ktp','kk','ijazah_akta'].forEach(k=>{ if (!body.has(k)) body.append(k,'0'); });
-  const res = await fetch('/api/daftar-ulang', { method: 'POST', headers: {'X-CSRF-TOKEN': csrf}, body });
-  if (res.ok) { this.reset(); loadDaftarUlang(); alert('Tersimpan'); } else { alert('Gagal menyimpan'); }
+  const method = daftarUlangEditId ? 'PUT' : 'POST';
+  const url = daftarUlangEditId ? '/api/daftar-ulang/' + daftarUlangEditId : '/api/daftar-ulang';
+  const res = await fetch(url, { method, headers: {'X-CSRF-TOKEN': csrf}, body });
+  if (res.ok) { form.reset(); daftarUlangEditId = null; loadDaftarUlang(); alert('Tersimpan'); } else { alert('Gagal menyimpan'); }
 });
 
 async function hapusDu(id){ if (!confirm('Hapus?')) return; const res = await fetch('/api/daftar-ulang/' + id, { method: 'DELETE', headers: {'X-CSRF-TOKEN': csrf} }); if (res.ok) loadDaftarUlang(); }
 
 loadPendaftarForSelect(); loadDaftarUlang();
+
+function editDu(id){
+  fetch('/api/daftar-ulang/' + id).then(r=>r.json()).then(d=>{
+    // set form values
+    document.querySelector('select[name="no_daftar"]').value = d.no_daftar;
+    document.getElementById('nama-pemohon').value = d.nama_pemohon || '';
+    document.querySelector('input[name="hari_harus_datang"]').value = d.hari_harus_datang || '';
+    document.querySelector('input[name="tanggal_harus_datang"]').value = d.tanggal_harus_datang || '';
+    document.getElementById('ktp').checked = !!d.ktp;
+    document.getElementById('kk').checked = !!d.kk;
+    document.getElementById('ijazah').checked = !!d.ijazah_akta;
+    document.getElementById('form-area').style.display = 'block';
+    daftarUlangEditId = id;
+  }).catch(()=>{ alert('Gagal memuat data'); });
+}
 </script>
 
 <script>
