@@ -69,6 +69,16 @@
     </div>
   </div>
 </div>
+<div class="text-center mt-4 opacity-75">
+  <small class="text-muted">
+    © {{ date('Y') }} • Programmer:
+    <strong>Kevin Novebrianto</strong>
+    <span class="mx-1">|</span>
+    221011400853
+    <span class="mx-1">|</span>
+    07TPLP021
+  </small>
+</div>
 
 @endsection
 

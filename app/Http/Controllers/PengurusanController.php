@@ -8,106 +8,116 @@ use Illuminate\Http\Request;
 
 class PengurusanController extends Controller
 {
+    /* ================= LIST ================= */
     public function index()
     {
-        $list = Pengurusan::orderBy('no_antrian')->get();
-        $total = Pengurusan::where('status', 'Diterima')->sum('pembayaran');
-        return response()->json(['data' => $list, 'total_pendapatan' => $total]);
+        return response()->json([
+            'data' => Pengurusan::orderBy('no_antrian')->get(),
+            'total_pendapatan' => Pengurusan::where('status', 'Diterima')->sum('pembayaran')
+        ]);
     }
 
-    /**
-     * Search pengurusan by name, no_daftar or no_antrian
-     */
+    /* ================= SEARCH ================= */
     public function search(Request $request)
     {
-        $q = $request->query('q');
-        if (!$q) return response()->json(['data' => [], 'total_pendapatan' => 0]);
-        $list = Pengurusan::where('nama_pemohon', 'like', "%{$q}%")
-            ->orWhere('no_daftar', 'like', "%{$q}%")
-            ->orWhere('no_antrian', 'like', "%{$q}%")
-            ->orWhere('status', 'like', "%{$q}%")
-            ->orWhere('berkas', 'like', "%{$q}%")
-            ->orWhere('keterangan', 'like', "%{$q}%")
-            ->orderBy('no_antrian')
-            ->get();
-        $total = $list->where('status', 'Diterima')->sum('pembayaran');
-        return response()->json(['data' => $list, 'total_pendapatan' => $total]);
+        $q = trim($request->q);
+
+        $list = Pengurusan::where(function ($qb) use ($q) {
+            $qb->where('nama_pemohon', 'like', "%$q%")
+               ->orWhere('no_antrian', 'like', "%$q%")
+               ->orWhere('status', 'like', "%$q%");
+        })->orderBy('no_antrian')->get();
+
+        return response()->json([
+            'data' => $list,
+            'total_pendapatan' => $list->where('status','Diterima')->sum('pembayaran')
+        ]);
     }
 
+    /* ================= MASUK ANTRIAN ================= */
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'daftar_ulang_id' => 'required|integer|exists:daftar_ulang,id',
-        ]);
+        $du = DaftarUlang::findOrFail($request->daftar_ulang_id);
 
-        $du = DaftarUlang::findOrFail($data['daftar_ulang_id']);
-
-        if (!$du->no_antrian) {
-            return response()->json(['error' => 'Entry tidak punya no_antrian'], 422);
+        if ($du->keterangan !== 'OK' || !$du->no_antrian) {
+            return response()->json(['error' => 'Daftar ulang belum valid'], 422);
         }
 
-        // Prevent duplicate pengurusan for same antrian/no_daftar
-        if (\App\Models\Pengurusan::where('no_antrian', $du->no_antrian)->exists() || \App\Models\Pengurusan::where('no_daftar', $du->no_daftar)->exists()) {
-            return response()->json(['error' => 'Pengurusan untuk entry ini sudah ada'], 409);
+        if (Pengurusan::where('no_antrian', $du->no_antrian)->exists()) {
+            return response()->json(['error' => 'Sudah masuk pengurusan'], 409);
         }
 
-        $allBerkas = ($du->ktp && $du->kk && $du->ijazah_akta);
-        if ($allBerkas) {
-            $berkas = 'Lengkap';
-            $status = 'Diterima';
-            $keterangan = 'OK';
-            $pembayaran = 355000;
-        } else {
-            $berkas = 'Tidak Lengkap';
-            $status = 'Ditolak';
-            $keterangan = 'Tidak Lengkap';
-            $pembayaran = 0;
-        }
-
-        $p = Pengurusan::create([
-            'no_antrian' => $du->no_antrian,
-            'no_daftar' => $du->no_daftar,
-            'nama_pemohon' => $du->nama_pemohon,
-            'berkas' => $berkas,
-            'status' => $status,
-            'keterangan' => $keterangan,
-            'pembayaran' => $pembayaran,
-        ]);
-
-        return response()->json($p, 201);
+        return response()->json(
+            Pengurusan::create([
+                'no_antrian'   => $du->no_antrian,
+                'no_daftar'    => $du->no_daftar,
+                'nama_pemohon' => $du->nama_pemohon,
+                'berkas'       => 'Lengkap',
+                'status'       => 'Menunggu',
+                'keterangan'   => 'Antri',
+                'pembayaran'   => 0,
+            ]),
+            201
+        );
     }
 
-    public function show($id)
+    /* ================= CURRENT ================= */
+    public function current()
     {
-        $p = Pengurusan::findOrFail($id);
-        return response()->json($p);
+        $current = Pengurusan::where('status', 'Diproses')->first();
+        if ($current) return response()->json($current);
+
+        $next = Pengurusan::where('status', 'Menunggu')
+            ->orderBy('no_antrian')
+            ->first();
+
+        if ($next) {
+            $next->update(['status' => 'Diproses']);
+            return response()->json($next);
+        }
+
+        return response()->json(null);
     }
 
+    /* ================= SELESAI + NEXT ================= */
+    public function selesaiDanNext($id)
+    {
+        $current = Pengurusan::findOrFail($id);
+
+        if ($current->status !== 'Diproses') {
+            return response()->json(['error'=>'Status tidak valid'], 422);
+        }
+
+        $current->update([
+            'status'     => 'Diterima',
+            'keterangan' => 'OK',
+            'pembayaran' => 355000
+        ]);
+
+        $next = Pengurusan::where('status','Menunggu')
+            ->orderBy('no_antrian')
+            ->first();
+
+        if ($next) $next->update(['status'=>'Diproses']);
+
+        return response()->json([
+            'selesai' => $current,
+            'next' => $next
+        ]);
+    }
+
+    /* ================= UPDATE ================= */
     public function update(Request $request, $id)
     {
         $p = Pengurusan::findOrFail($id);
-        $data = $request->validate([
-            'nama_pemohon' => 'sometimes|string',
-            'berkas' => 'sometimes|string',
-            'status' => 'sometimes|string',
-            'keterangan' => 'sometimes|string',
-            'pembayaran' => 'sometimes|numeric',
-        ]);
-
-        if (isset($data['nama_pemohon'])) $p->nama_pemohon = $data['nama_pemohon'];
-        if (isset($data['berkas'])) $p->berkas = $data['berkas'];
-        if (isset($data['status'])) $p->status = $data['status'];
-        if (isset($data['keterangan'])) $p->keterangan = $data['keterangan'];
-        if (isset($data['pembayaran'])) $p->pembayaran = $data['pembayaran'];
-
-        $p->save();
+        $p->update($request->only(['status','keterangan','pembayaran','berkas']));
         return response()->json($p);
     }
 
+    /* ================= DELETE ================= */
     public function destroy($id)
     {
-        $p = Pengurusan::findOrFail($id);
-        $p->delete();
-        return response()->json(['deleted' => true]);
+        Pengurusan::findOrFail($id)->delete();
+        return response()->json(['deleted'=>true]);
     }
 }

@@ -95,5 +95,36 @@
     })();
     </script>
     @stack('scripts')
+    <script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  // asumsi tombol burger ada class .btn-sidebar-toggle
+  const toggleBtn = document.querySelector('.btn-sidebar-toggle');
+
+  if (!toggleBtn) return;
+
+  toggleBtn.addEventListener('click', function () {
+    document.body.classList.toggle('sidebar-collapsed');
+  });
+
+});
+</script>
+<script>
+(function(){
+  var btn = document.getElementById('sidebarToggle');
+
+  if (!btn) {
+    console.warn('sidebarToggle button NOT FOUND');
+    return;
+  }
+
+  btn.onclick = function () {
+    console.log('SIDEBAR TOGGLE CLICKED');
+    document.body.classList.toggle('sidebar-collapsed');
+    console.log(document.body.className);
+  };
+})();
+</script>
+
   </body>
 </html>

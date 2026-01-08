@@ -11,13 +11,24 @@ use Illuminate\Support\Facades\DB;
 class DaftarUlangController extends Controller
 {
     public function index()
-    {
-        $list = DaftarUlang::orderBy('id')->get()->map(function($du){
-            $processed = Pengurusan::where('no_daftar', $du->no_daftar)->orWhere('no_antrian', $du->no_antrian)->exists();
-            return array_merge($du->toArray(), ['processed' => $processed]);
-        });
-        return response()->json($list);
-    }
+{
+    $list = DaftarUlang::orderBy('id')->get()->map(function ($du) {
+
+        $processed = false;
+
+        // ✅ hanya cek berdasarkan no_antrian
+        if ($du->no_antrian) {
+            $processed = Pengurusan::where('no_antrian', $du->no_antrian)->exists();
+        }
+
+        return array_merge($du->toArray(), [
+            'processed' => $processed
+        ]);
+    });
+
+    return response()->json($list);
+}
+
 
     /**
      * Search daftar ulang by name or no_daftar
@@ -55,19 +66,25 @@ class DaftarUlangController extends Controller
 
     public function store(Request $request)
     {
+
         $data = $request->validate([
             'no_daftar' => 'required|integer|exists:pendaftaran,no_daftar',
             'nama_pemohon' => 'required|string',
             'hari_harus_datang' => 'required|string',
             'tanggal_harus_datang' => 'required|date',
-            'ktp' => 'sometimes|boolean',
-            'kk' => 'sometimes|boolean',
-            'ijazah_akta' => 'sometimes|boolean',
+            'ktp' => 'nullable|in:0,1',
+            'kk' => 'nullable|in:0,1',
+            'ijazah_akta' => 'nullable|in:0,1',
         ]);
 
         $p = Pendaftaran::findOrFail($data['no_daftar']);
 
-        $hasAnyBerkas = ($request->boolean('ktp') || $request->boolean('kk') || $request->boolean('ijazah_akta'));
+        $hasAllBerkas = (
+          $request->boolean('ktp') &&
+            $request->boolean('kk') &&
+            $request->boolean('ijazah_akta')
+        );
+
 
         // Matching rule: only compare tanggal_harus_datang (date) with scheduled tanggal_hadir
         $matches = false;
@@ -78,7 +95,7 @@ class DaftarUlangController extends Controller
         $keterangan = 'TIDAK';
         $no_antrian = null;
 
-        if ($matches && $hasAnyBerkas) {
+        if ($matches && $hasAllBerkas) {
             $keterangan = 'OK';
             // generate no_antrian automatically in a DB transaction with lock to avoid race conditions
             DB::beginTransaction();
@@ -99,9 +116,9 @@ class DaftarUlangController extends Controller
             'nama_pemohon' => $data['nama_pemohon'],
             'hari_harus_datang' => $data['hari_harus_datang'],
             'tanggal_harus_datang' => $data['tanggal_harus_datang'],
-            'ktp' => $request->boolean('ktp'),
-            'kk' => $request->boolean('kk'),
-            'ijazah_akta' => $request->boolean('ijazah_akta'),
+            'ktp' => (int) $request->input('ktp', 0),
+            'kk' => (int) $request->input('kk', 0),
+            'ijazah_akta' => (int) $request->input('ijazah_akta', 0),
             'keterangan' => $keterangan,
             'no_antrian' => $no_antrian,
         ]);
@@ -119,23 +136,24 @@ class DaftarUlangController extends Controller
     {
         $du = DaftarUlang::findOrFail($id);
         $data = $request->only(['nama_pemohon','hari_harus_datang','tanggal_harus_datang','ktp','kk','ijazah_akta']);
-        if (isset($data['ktp'])) $du->ktp = (bool)$data['ktp'];
-        if (isset($data['kk'])) $du->kk = (bool)$data['kk'];
-        if (isset($data['ijazah_akta'])) $du->ijazah_akta = (bool)$data['ijazah_akta'];
+        if (array_key_exists('ktp', $data)) $du->ktp = (int) $data['ktp'];
+        if (array_key_exists('kk', $data)) $du->kk = (int) $data['kk'];
+        if (array_key_exists('ijazah_akta', $data)) $du->ijazah_akta = (int) $data['ijazah_akta'];
+
         if (isset($data['nama_pemohon'])) $du->nama_pemohon = $data['nama_pemohon'];
         if (isset($data['hari_harus_datang'])) $du->hari_harus_datang = $data['hari_harus_datang'];
         if (isset($data['tanggal_harus_datang'])) $du->tanggal_harus_datang = $data['tanggal_harus_datang'];
 
         // Re-evaluate keterangan and antrian
         $p = Pendaftaran::find($du->no_daftar);
-        $hasAnyBerkas = ($du->ktp || $du->kk || $du->ijazah_akta);
+        $hasAllBerkas = ($du->ktp && $du->kk && $du->ijazah_akta);
         // match only by tanggal_harus_datang (date)
         $matches = false;
         if ($p && $p->tanggal_hadir) {
             $matches = ($du->tanggal_harus_datang == \Carbon\Carbon::parse($p->tanggal_hadir)->format('Y-m-d'));
         }
 
-        if ($matches && $hasAnyBerkas) {
+        if ($matches && $hasAllBerkas) {
             if ($du->keterangan !== 'OK') {
                 // assign no_antrian safely inside a transaction
                 DB::beginTransaction();

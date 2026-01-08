@@ -1,8 +1,11 @@
 <header class="navbar navbar-expand-lg navbar-dark bg-dark" style="height:64px;">
   <div class="container-fluid d-flex align-items-center justify-content-between">
     <div class="d-flex align-items-center gap-3">
-      <button class="btn btn-dark" id="sidebarToggle"><i class="fas fa-bars"></i></button>
-      <a class="navbar-brand fw-bold text-white ms-2" href="/">Imigrasi Paspor</a>
+      <button class="btn btn-dark" id="sidebarToggle" type="button">
+  <i class="fas fa-bars"></i>
+</button>
+
+      <a class="navbar-brand fw-bold text-white ms-2" href="/">SIMPAS</a>
     </div>
 
     <div class="d-flex align-items-center gap-3">

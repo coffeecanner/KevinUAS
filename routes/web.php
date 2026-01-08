@@ -18,6 +18,10 @@ Route::middleware('auth')->group(function(){
 	// Dashboard
 	Route::get('/', [DashboardController::class, 'index']);
 	Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
+    Route::get('/pengurusan', [PengurusanController::class, 'index']);
+Route::get('/pengurusan/current', [PengurusanController::class, 'current']);
+Route::post('/pengurusan/panggil', [PengurusanController::class, 'panggilNext']);
+Route::put('/pengurusan/{id}/selesai', [PengurusanController::class, 'selesai']);
 
 	// Simple JSON endpoints for the passport process modules
 	// JSON API endpoints (prefixed with /api)
@@ -36,6 +40,9 @@ Route::middleware('auth')->group(function(){
 	Route::delete('/api/daftar-ulang/{id}', [DaftarUlangController::class, 'destroy']);
 
 	Route::get('/api/pengurusan', [PengurusanController::class, 'index']);
+    Route::get('/api/pengurusan/current', [PengurusanController::class, 'current']);
+Route::put('/api/pengurusan/{id}/selesai-next', [PengurusanController::class, 'selesaiDanNext']);
+
 	Route::get('/api/pengurusan/search', [PengurusanController::class, 'search']);
 	Route::post('/api/pengurusan', [PengurusanController::class, 'store']);
 	Route::get('/api/pengurusan/{id}', [PengurusanController::class, 'show']);
