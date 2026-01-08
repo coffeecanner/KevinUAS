@@ -154,11 +154,3 @@ Rekomendasi pengembangan (roadmap)
 4. Role-based access control & audit log untuk aktivitas penting.
 5. Test coverage: unit test untuk aturan bisnis kunci (kuota, antrian, perhitungan pendapatan).
 
-Lisensi
---
-Silakan tambahkan file `LICENSE` sesuai kebijakan Anda (mis. MIT) jika Anda ingin mendistribusikan kode ini.
-
-Butuh tambahan?
---
-Saya dapat menambahkan contoh response JSON per-endpoint, badge CI, atau instruksi deployment (Docker / Forge / VPS). Beri tahu saya apa yang Anda butuhkan selanjutnya.
-
